@@ -1,0 +1,51 @@
+.video-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+	gap: 1rem;
+	padding: 1rem 0;
+}
+
+.video-card {
+	display: flex;
+	flex-direction: column;
+	border: 1px solid #ddd;
+	border-radius: 8px;
+	overflow: hidden;
+	text-decoration: none;
+	color: inherit;
+	transition:
+		transform 0.2s,
+		box-shadow 0.2s;
+}
+
+.video-card:hover {
+	transform: translateY(-4px);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.video-thumbnail img {
+	width: 100%;
+	aspect-ratio: 16 / 9;
+	object-fit: cover;
+	display: block;
+}
+
+.thumbnail-placeholder {
+	width: 100%;
+	aspect-ratio: 16 / 9;
+	background: #e0e0e0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: #888;
+	font-size: 0.85rem;
+}
+
+.video-card-title {
+	padding: 0.5rem 0.75rem;
+	font-size: 0.9rem;
+	font-weight: 500;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
