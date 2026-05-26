@@ -33,6 +33,18 @@ export default function Preview() {
 			.catch(() => setThumbnail(null));
 	}, [filename]);
 
+	useEffect(() => {
+		if (!imageReady) return;
+		const img = imgRef.current;
+		const canvas = canvasRef.current;
+		if (!img || !canvas) return;
+
+		canvas.width = img.naturalWidth;
+		canvas.height = img.naturalHeight;
+		const ctx = canvas.getContext("2d");
+		ctx.drawImage(img, 0, 0);
+	}, [imageReady, color, tolerance]);
+
 	function handleColorChange(e) {
 		setColor(e.target.value);
 	}
