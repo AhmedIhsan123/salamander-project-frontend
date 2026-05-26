@@ -1,8 +1,10 @@
 import { Link, useParams } from "react-router-dom";
-import { useState, useRef, useEffect } from "react";
+import { getThumbnail } from "../mockApi.js";
+import { useEffect, useState, useRef } from "react";
 
 export default function Preview() {
 	const { filename } = useParams();
+	const thumbnail = getThumbnail(filename);
 	const [color, setColor] = useState(null);
 	const [tolerance, setTolerance] = useState(0);
 	const [imageReady, setImageReady] = useState(false);
@@ -30,14 +32,12 @@ export default function Preview() {
 					{filename}
 				</h1>
 
-				<p className="text-stone-500 text-sm leading-relaxed mb-8"></p>
-				<img src={thumbnail} alt={thumbnail.filename}></img>
 				<div className="flex items-center gap-3 mb-6">
 					<div className="h-px flex-1 bg-stone-200" />
 				</div>
 
 				<p className="text-stone-500 text-sm leading-relaxed mb-8">
-					Thumbnail and tuning controls will go here in a future pair program.
+					<img src={thumbnail} src={thumbnail.filename} />
 				</p>
 
 				<div>
