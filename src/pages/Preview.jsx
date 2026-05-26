@@ -114,7 +114,7 @@ export default function Preview() {
 					<input type="range" onChange={handleToleranceChange} />
 				</div>
 
-				<canvas ref={canvasRef}></canvas>
+				<canvas ref={canvasRef} className="w-full aspect-video object-cover"></canvas>
 
 				<Link
 					to="/videos"
