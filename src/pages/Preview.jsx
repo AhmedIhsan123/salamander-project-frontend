@@ -43,6 +43,32 @@ export default function Preview() {
 		canvas.height = img.naturalHeight;
 		const ctx = canvas.getContext("2d");
 		ctx.drawImage(img, 0, 0);
+		const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+		const px = data.data;
+
+		// Parse target color from hex string
+		const targetR = parseInt(color?.slice(1, 3), 16) ?? 0;
+		const targetG = parseInt(color?.slice(3, 5), 16) ?? 0;
+		const targetB = parseInt(color?.slice(5, 7), 16) ?? 0;
+
+		for (let i = 0; i < px.length; i += 4) {
+			const dr = px[i] - targetR;
+			const dg = px[i + 1] - targetG;
+			const db = px[i + 2] - targetB;
+
+			// Euclidean distance between pixel color and target color
+			const distance = Math.sqrt(dr * dr + dg * dg + db * db);
+
+			// White if within threshold, black otherwise (matches DistanceImageBinarizer)
+			const binary = distance < tolerance ? 255 : 0;
+
+			px[i] = binary;
+			px[i + 1] = binary;
+			px[i + 2] = binary;
+			// px[i + 3] = alpha, leave unchanged
+		}
+
+		ctx.putImageData(data, 0, 0);
 	}, [imageReady, color, tolerance]);
 
 	function handleColorChange(e) {
