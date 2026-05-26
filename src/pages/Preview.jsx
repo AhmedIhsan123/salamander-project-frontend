@@ -1,7 +1,11 @@
 import { Link, useParams } from 'react-router-dom';
+import { getThumbnail } from '../mockApi.js';
 
 export default function Preview() {
   const { filename } = useParams();
+  const thumbnail = getThumbnail(filename);
+
+  console.log(thumbnail);
 
   return (
     <div className="flex flex-col items-center justify-center px-6 py-16">
@@ -21,8 +25,8 @@ export default function Preview() {
         </div>
 
         <p className="text-stone-500 text-sm leading-relaxed mb-8">
-          Thumbnail and tuning controls will go here in a future pair program.
         </p>
+        <img src={thumbnail} alt={thumbnail.filename}></img>
 
         <Link to="/videos" className="inline-flex items-center gap-1.5 text-sm font-medium text-green-700 hover:text-green-900 underline underline-offset-2 decoration-green-300 hover:decoration-green-600 transition-colors">
           Back to videos
