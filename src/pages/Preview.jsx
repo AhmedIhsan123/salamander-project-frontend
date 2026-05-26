@@ -5,6 +5,9 @@ export default function Preview() {
 	const { filename } = useParams();
 	const [color, setColor] = useState(null);
 	const [tolerance, setTolerance] = useState(0);
+	const [imageReady, setImageReady] = useState(false);
+	const canvasRef = useRef(null);
+	const imageRef = useRef(null);
 
 	function handleColorChange(e) {
 		setColor(e.target.value);
@@ -39,6 +42,8 @@ export default function Preview() {
 					<input type="color" onChange={handleColorChange} />
 					<input type="range" onChange={handleToleranceChange} />
 				</div>
+
+				<canvas ref={canvasRef}></canvas>
 
 				<Link
 					to="/videos"
