@@ -4,20 +4,25 @@ import { useEffect, useState, useRef } from "react";
 
 export default function Preview() {
 	const { filename } = useParams();
-	const thumbnail = getThumbnail(filename);
+	const [thumbnail, setThumbnail] = useState(null);
 	const [color, setColor] = useState(null);
 	const [tolerance, setTolerance] = useState(0);
 	const [imageReady, setImageReady] = useState(false);
 	const canvasRef = useRef(null);
 	const imageRef = useRef(null);
 
+	useEffect(() => {
+		getThumbnail(filename)
+			.then((url) => setThumbnail(url))
+			.catch(() => setThumbnail(null));
+	}, [filename]);
+
 	function handleColorChange(e) {
 		setColor(e.target.value);
-		console.log(color);
 	}
 
 	function handleToleranceChange(e) {
-		console.log(e.target.value);
+		setTolerance(e.target.value);
 	}
 
 	return (
@@ -36,9 +41,21 @@ export default function Preview() {
 					<div className="h-px flex-1 bg-stone-200" />
 				</div>
 
-				<p className="text-stone-500 text-sm leading-relaxed mb-8">
-					<img src={thumbnail} src={thumbnail.filename} />
-				</p>
+				<div className="mb-8">
+					{thumbnail ? (
+						<img
+							ref={imageRef}
+							src={thumbnail}
+							alt={filename}
+							className="w-full aspect-video object-cover"
+							onLoad={() => setImageReady(true)}
+						/>
+					) : (
+						<div className="w-full aspect-video bg-stone-100 flex items-center justify-center text-stone-400 text-sm">
+							Loading thumbnail...
+						</div>
+					)}
+				</div>
 
 				<div>
 					<input type="color" onChange={handleColorChange} />
