@@ -9,11 +9,27 @@ export default function Preview() {
 	const [tolerance, setTolerance] = useState(0);
 	const [imageReady, setImageReady] = useState(false);
 	const canvasRef = useRef(null);
-	const imageRef = useRef(null);
+	const imgRef = useRef(null);
 
 	useEffect(() => {
 		getThumbnail(filename)
-			.then((url) => setThumbnail(url))
+			.then((url) => {
+				setThumbnail(url);
+				setImageReady(false);
+				const img = new Image();
+				img.crossOrigin = "anonymous";
+				img.onload = () => {
+					imgRef.current = img;
+					setImageReady(true);
+					console.log(
+						"image loaded:",
+						imgRef.current.naturalWidth,
+						"x",
+						imgRef.current.naturalHeight,
+					);
+				};
+				img.src = url;
+			})
 			.catch(() => setThumbnail(null));
 	}, [filename]);
 
@@ -44,11 +60,9 @@ export default function Preview() {
 				<div className="mb-8">
 					{thumbnail ? (
 						<img
-							ref={imageRef}
 							src={thumbnail}
 							alt={filename}
 							className="w-full aspect-video object-cover"
-							onLoad={() => setImageReady(true)}
 						/>
 					) : (
 						<div className="w-full aspect-video bg-stone-100 flex items-center justify-center text-stone-400 text-sm">
