@@ -1,13 +1,3 @@
-<<<<<<< HEAD
-import { Link, useParams } from 'react-router-dom';
-import { getThumbnail } from '../mockApi.js';
-
-export default function Preview() {
-  const { filename } = useParams();
-  const thumbnail = getThumbnail(filename);
-
-  console.log(thumbnail);
-=======
 import { Link, useParams } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
 
@@ -18,7 +8,6 @@ export default function Preview() {
 	const [imageReady, setImageReady] = useState(false);
 	const canvasRef = useRef(null);
 	const imageRef = useRef(null);
->>>>>>> e505d0914b229bd9846770f8af811ae206d1bc7f
 
 	function handleColorChange(e) {
 		setColor(e.target.value);
@@ -41,15 +30,11 @@ export default function Preview() {
 					{filename}
 				</h1>
 
-<<<<<<< HEAD
-        <p className="text-stone-500 text-sm leading-relaxed mb-8">
-        </p>
-        <img src={thumbnail} alt={thumbnail.filename}></img>
-=======
+				<p className="text-stone-500 text-sm leading-relaxed mb-8"></p>
+				<img src={thumbnail} alt={thumbnail.filename}></img>
 				<div className="flex items-center gap-3 mb-6">
 					<div className="h-px flex-1 bg-stone-200" />
 				</div>
->>>>>>> e505d0914b229bd9846770f8af811ae206d1bc7f
 
 				<p className="text-stone-500 text-sm leading-relaxed mb-8">
 					Thumbnail and tuning controls will go here in a future pair program.
