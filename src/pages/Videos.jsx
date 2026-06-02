@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getVideos, getThumbnail } from "../mockApi.js";
+import { getVideos, getThumbnail } from "../api.js";
 import { Link } from "react-router-dom";
 
 export default function Videos() {
