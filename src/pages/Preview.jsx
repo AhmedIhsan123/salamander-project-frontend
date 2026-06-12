@@ -1,13 +1,15 @@
 import { Link, useParams } from "react-router-dom";
-import { getThumbnail } from "../api.js";
+import { getThumbnail, submitProcessingJob, getJobStatus } from "../api.js";
 import { useEffect, useState, useRef } from "react";
 
 export default function Preview() {
 	const { filename } = useParams();
 	const [thumbnail, setThumbnail] = useState(null);
-	const [color, setColor] = useState(null);
-	const [tolerance, setTolerance] = useState(0);
+	const [color, setColor] = useState("#ffa200");
+	const [tolerance, setTolerance] = useState(100);
 	const [imageReady, setImageReady] = useState(false);
+	const [job, setJob] = useState(null); 
+	const [submitting, setSubmitting] = useState(false);
 	const canvasRef = useRef(null);
 	const imgRef = useRef(null);
 
@@ -71,12 +73,41 @@ export default function Preview() {
 		ctx.putImageData(data, 0, 0);
 	}, [imageReady, color, tolerance]);
 
+	// Poll the job status every 2 seconds while a job is processing.
+	useEffect(() => {
+		if (!job?.jobId || job.status !== "processing") return;
+
+		const interval = setInterval(async () => {
+			try {
+				const status = await getJobStatus(job.jobId);
+				setJob({ jobId: job.jobId, ...status });
+			} catch (err) {
+				setJob({ jobId: job.jobId, status: "error", error: err.message });
+			}
+		}, 2000);
+
+		return () => clearInterval(interval);
+	}, [job?.jobId, job?.status]);
+
+	async function handleProcess() {
+		setSubmitting(true);
+		setJob(null);
+		try {
+			const { jobId } = await submitProcessingJob(filename, color, tolerance);
+			setJob({ jobId, status: "processing" });
+		} catch (err) {
+			setJob({ status: "error", error: err.message });
+		} finally {
+			setSubmitting(false);
+		}
+	}
+
 	function handleColorChange(e) {
 		setColor(e.target.value);
 	}
 
 	function handleToleranceChange(e) {
-		setTolerance(e.target.value);
+		setTolerance(Number(e.target.value));
 	}
 
 	return (
@@ -109,12 +140,82 @@ export default function Preview() {
 					)}
 				</div>
 
-				<div>
-					<input type="color" onChange={handleColorChange} />
-					<input type="range" onChange={handleToleranceChange} />
+				<div className="mb-8 space-y-5">
+					<div className="flex flex-wrap items-center gap-6">
+						<label className="flex items-center gap-3 text-sm font-medium text-stone-600">
+							Target color
+							<input
+								type="color"
+								value={color}
+								onChange={handleColorChange}
+								className="h-9 w-14 cursor-pointer rounded border border-stone-300 bg-white p-0.5"
+							/>
+						</label>
+
+						<label className="flex flex-1 min-w-[220px] items-center gap-3 text-sm font-medium text-stone-600">
+							Threshold
+							<input
+								type="range"
+								min="0"
+								max="255"
+								value={tolerance}
+								onChange={handleToleranceChange}
+								className="flex-1 accent-green-700"
+							/>
+							<span className="w-10 text-right tabular-nums text-stone-700">
+								{tolerance}
+							</span>
+						</label>
+					</div>
+
+					<button
+						type="button"
+						onClick={handleProcess}
+						disabled={submitting || job?.status === "processing"}
+						className="w-full rounded-sm bg-green-800 px-6 py-3 text-sm font-medium
+						           tracking-wide text-white transition-colors hover:bg-green-700
+						           disabled:cursor-not-allowed disabled:bg-stone-300"
+					>
+						{job?.status === "processing"
+							? "Processing..."
+							: submitting
+								? "Starting..."
+								: "Start Processing"}
+					</button>
+
+					{job?.status === "processing" && (
+						<div className="rounded-sm border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+							<span className="animate-pulse">●</span> Processing video — this
+							can take a while. Job ID:{" "}
+							<code className="text-xs">{job.jobId}</code>
+						</div>
+					)}
+
+					{job?.status === "done" && (
+						<div className="flex items-center justify-between gap-4 rounded-sm border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+							<span>✓ Processing complete!</span>
+							<a
+								href={job.result}
+								download
+								className="font-medium underline underline-offset-2 hover:text-green-950"
+							>
+								Download results CSV
+							</a>
+						</div>
+					)}
+
+					{job?.status === "error" && (
+						<div className="rounded-sm border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+							Something went wrong: {job.error || "processing failed."} Try
+							again, or check that the server is running.
+						</div>
+					)}
 				</div>
 
-				<canvas ref={canvasRef} className="w-full aspect-video object-cover"></canvas>
+				<p className="text-xs uppercase tracking-[0.2em] text-stone-400 font-medium mb-3">
+					Binarization preview
+				</p>
+				<canvas ref={canvasRef} className="w-full aspect-video object-cover mb-8"></canvas>
 
 				<Link
 					to="/videos"

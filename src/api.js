@@ -16,10 +16,15 @@ export async function getThumbnail(filename) {
 }
 
 export async function submitProcessingJob(filename, targetColor, threshold) {
-  // The contract wants the hex with no leading '#'.
+  // The server expects targetColor as "R,G,B" (e.g. "255,162,0"),
+  // so convert the hex string from the color picker into RGB parts.
   const hex = targetColor.replace('#', '');
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  const rgb = encodeURIComponent(`${r},${g},${b}`);
   const res = await fetch(
-    `/process/${filename}?targetColor=${hex}&threshold=${threshold}`,
+    `/process/${filename}?targetColor=${rgb}&threshold=${threshold}`,
     { method: 'POST' }
   );
   if (!res.ok) {
