@@ -6,6 +6,18 @@ export async function getVideos() {
   return res.json();
 }
 
+export async function uploadVideo(file) {
+  const formData = new FormData();
+  formData.append('video', file);
+  const res = await fetch('/api/videos', { method: 'POST', body: formData });
+  if (!res.ok) {
+    // server sends back a helpful message, use it if there is one
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Server responded ${res.status}`);
+  }
+  return res.json();
+}
+
 export async function getThumbnail(filename) {
   const url = `/thumbnail/${filename}`;
   const res = await fetch(url);
