@@ -20,6 +20,11 @@ export function getAllJobs() {
 	return readAll();
 }
 
+// How many jobs are currently still processing
+export function countProcessing() {
+	return readAll().filter((j) => j.status === "processing").length;
+}
+
 // Add a job, or update it if it already exists
 export function saveJob(job) {
 	try {

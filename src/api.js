@@ -18,6 +18,28 @@ export async function uploadVideo(file) {
   return res.json();
 }
 
+export async function renameVideo(filename, newName) {
+  const res = await fetch(`/api/videos/${filename}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ newName }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Server responded ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function deleteVideo(filename) {
+  const res = await fetch(`/api/videos/${filename}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Server responded ${res.status}`);
+  }
+  return res.json();
+}
+
 export async function getThumbnail(filename) {
   const url = `/thumbnail/${filename}`;
   const res = await fetch(url);
