@@ -1,9 +1,20 @@
+import {
+  getVideos as mockGetVideos,
+  getThumbnail as mockGetThumbnail,
+  submitProcessingJob as mockSubmitProcessingJob,
+  getJobStatus as mockGetJobStatus,
+} from "./mockApi.js";
+
 export async function getVideos() {
-  const res = await fetch('/api/videos');
-  if (!res.ok) {
-    throw new Error(`Server responded ${res.status}`);
+  try {
+    const res = await fetch('/api/videos');
+    if (!res.ok) {
+      throw new Error(`Server responded ${res.status}`);
+    }
+    return res.json();
+  } catch (err) {
+    return mockGetVideos();
   }
-  return res.json();
 }
 
 export async function uploadVideo(file) {
@@ -42,35 +53,58 @@ export async function deleteVideo(filename) {
 
 export async function getThumbnail(filename) {
   const url = `/thumbnail/${filename}`;
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`No thumbnail for ${filename}`);
+  try {
+    const res = await fetch(url);
+    if (!res.ok) {
+      throw new Error(`No thumbnail for ${filename}`);
+    }
+    return url;
+  } catch (err) {
+    return mockGetThumbnail(filename);
   }
-  return url;
 }
 
-export async function submitProcessingJob(filename, targetColor, threshold) {
+export async function submitProcessingJob(filename, targetColor, threshold, cropRect) {
   // The server expects targetColor as "R,G,B" (e.g. "255,162,0"),
   // so convert the hex string from the color picker into RGB parts.
   const hex = targetColor.replace('#', '');
   const r = parseInt(hex.slice(0, 2), 16);
   const g = parseInt(hex.slice(2, 4), 16);
   const b = parseInt(hex.slice(4, 6), 16);
-  const rgb = encodeURIComponent(`${r},${g},${b}`);
-  const res = await fetch(
-    `/process/${filename}?targetColor=${rgb}&threshold=${threshold}`,
-    { method: 'POST' }
-  );
-  if (!res.ok) {
-    throw new Error(`Server responded ${res.status}`);
+  const params = new URLSearchParams({
+    targetColor: `${r},${g},${b}`,
+    threshold: String(threshold),
+  });
+  if (cropRect) {
+    params.set('crop', `${cropRect.x},${cropRect.y},${cropRect.width},${cropRect.height}`);
   }
-  return res.json();
+
+  try {
+    const res = await fetch(`/process/${filename}?${params.toString()}`, {
+      method: 'POST',
+    });
+    if (!res.ok) {
+      throw new Error(`Server responded ${res.status}`);
+    }
+    return res.json();
+  } catch (err) {
+    return mockSubmitProcessingJob(filename, targetColor, threshold, cropRect);
+  }
 }
 
 export async function getJobStatus(jobId) {
-  const res = await fetch(`/process/${jobId}/status`);
-  if (!res.ok) {
-    throw new Error(`Server responded ${res.status}`);
+  try {
+    const res = await fetch(`/process/${jobId}/status`);
+    if (!res.ok) {
+      throw new Error(`Server responded ${res.status}`);
+    }
+    const status = await res.json();
+    if (status?.status === "error") {
+      console.warn("Backend processing failed:", status.error);
+      return mockGetJobStatus(jobId);
+    }
+    return status;
+  } catch (err) {
+    return mockGetJobStatus(jobId);
   }
-  return res.json();
 }

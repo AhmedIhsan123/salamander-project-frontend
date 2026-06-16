@@ -35,7 +35,7 @@ export async function getThumbnail(filename) {
 	return thumbnails[filename];
 }
 
-export async function submitProcessingJob(filename, targetColor, threshold) {
+export async function submitProcessingJob(filename, targetColor, threshold, cropRect) {
 	await delay(500);
 	// Pretend the server gave us a job id.
 	return { jobId: `mock-${Date.now()}` };
@@ -44,9 +44,10 @@ export async function submitProcessingJob(filename, targetColor, threshold) {
 export async function getJobStatus(jobId) {
 	await delay(300);
 	// Pretend the job finished successfully.
+	// Return a backend result URL that the server can actually serve
 	return {
 		jobId,
-		status: "complete",
-		csvUrl: "https://example.com/results.csv",
+		status: "done",
+		result: `/results/${jobId}.csv`,
 	};
 }

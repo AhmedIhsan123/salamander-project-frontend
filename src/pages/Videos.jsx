@@ -49,7 +49,7 @@ export default function Videos() {
 		try {
 			await uploadVideo(file);
 			// refresh the list so the new video shows
-			await loadVideos();  up
+			await loadVideos();
 		} catch (err) {
 			setUploadError(err.message);
 		} finally {

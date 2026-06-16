@@ -15,15 +15,22 @@ export default function Preview() {
 	const [submitting, setSubmitting] = useState(false);
 	const [hover, setHover] = useState(null); // color under the mouse
 	const [history, setHistory] = useState([]);
+	const [cropRect, setCropRect] = useState(null);
+	const [cropMode, setCropMode] = useState(false);
+	const [selection, setSelection] = useState(null);
 
 	const videoRef = useRef(null);
 	const canvasRef = useRef(null);
 	const pickRef = useRef(null); // hidden canvas used to read pixel colors
-	// keep latest color/threshold in refs so the animation loop sees fresh values
+	const origWrapperRef = useRef(null);
+	const binarizedWrapperRef = useRef(null);
+	// keep latest color/threshold/crop in refs so the animation loop sees fresh values
 	const colorRef = useRef(color);
 	const tolRef = useRef(tolerance);
+	const cropRectRef = useRef(cropRect);
 	colorRef.current = color;
 	tolRef.current = tolerance;
+	cropRectRef.current = cropRect;
 
 	const videoUrl = `/videos/${filename}`;
 
@@ -41,23 +48,85 @@ export default function Preview() {
 		];
 	}
 
+	function getResultLabel(result) {
+		if (!result) return "Download";
+		if (/\.csv($|\?)/i.test(result)) return "Download CSV";
+		if (/\.(mp4|mov|avi|mkv|webm)($|\?)/i.test(result)) return "Download processed video";
+		return "Download result";
+	}
+
+	function getFilenameFromUrl(url) {
+		try {
+			const parsed = new URL(url, window.location.href);
+			const parts = parsed.pathname.split("/").filter(Boolean);
+			return parts[parts.length - 1] || `download-${Date.now()}`;
+		} catch {
+			return `download-${Date.now()}`;
+		}
+	}
+
+	async function downloadResult(url) {
+		if (!url) return;
+		try {
+			const res = await fetch(url);
+			if (!res.ok) {
+				console.error(`Download failed: ${res.status} from ${url}`);
+				throw new Error(`Server responded ${res.status}`);
+			}
+			const blob = await res.blob();
+			const link = document.createElement("a");
+			const objectUrl = URL.createObjectURL(blob);
+			link.href = objectUrl;
+			link.download = getFilenameFromUrl(url);
+			document.body.appendChild(link);
+			link.click();
+			link.remove();
+			URL.revokeObjectURL(objectUrl);
+		} catch (err) {
+			console.error("Download error:", err);
+			alert(`Download failed: ${err.message}\nURL: ${url}`);
+		}
+	}
+
 	// Draws the current video frame to the canvas, binarizing it if needed.
 	function drawFrame() {
 		const video = videoRef.current;
 		const canvas = canvasRef.current;
 		if (!video || !canvas || video.videoWidth === 0) return;
 
-		canvas.width = video.videoWidth;
-		canvas.height = video.videoHeight;
-		const ctx = canvas.getContext("2d");
-		ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+		// If a crop is active, render only the cropped region; otherwise show the full frame
+		const crop = cropRectRef.current;
+		const displayWidth = crop ? crop.width : video.videoWidth;
+		const displayHeight = crop ? crop.height : video.videoHeight;
 
-		// also keep a copy of the raw frame so the eyedropper can read true colors
+		canvas.width = displayWidth;
+		canvas.height = displayHeight;
+		const ctx = canvas.getContext("2d");
+
+		// Draw the video frame (cropped if needed)
+		if (crop) {
+			ctx.drawImage(
+				video,
+				crop.x,
+				crop.y,
+				crop.width,
+				crop.height,
+				0,
+				0,
+				displayWidth,
+				displayHeight,
+			);
+		} else {
+			ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+		}
+
+		// Keep a copy of the FULL frame for color picking (eyedropper always uses full video)
 		const pick = pickRef.current;
 		if (pick) {
-			pick.width = canvas.width;
-			pick.height = canvas.height;
-			pick.getContext("2d").drawImage(video, 0, 0, pick.width, pick.height);
+			pick.width = video.videoWidth;
+			pick.height = video.videoHeight;
+			const pickCtx = pick.getContext("2d");
+			pickCtx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
 		}
 
 		// always produce the binarized view (shown live in the right panel)
@@ -119,12 +188,13 @@ export default function Preview() {
 		setSubmitting(true);
 		setJob(null);
 		try {
-			const { jobId } = await submitProcessingJob(filename, color, tolerance);
+			const { jobId } = await submitProcessingJob(filename, color, tolerance, cropRect);
 			setJob({
 				jobId,
 				status: "processing",
 				color,
 				threshold: tolerance,
+				cropRect,
 				time: Date.now(),
 			});
 		} catch (err) {
@@ -154,9 +224,82 @@ export default function Preview() {
 		return { x: e.clientX - rect.left, y: e.clientY - rect.top, hex };
 	}
 
+	function getVideoCoordinates(e) {
+		const wrapper = origWrapperRef.current;
+		const video = videoRef.current;
+		if (!wrapper || !video || video.videoWidth === 0) return null;
+		const rect = wrapper.getBoundingClientRect();
+		const x = Math.min(
+			video.videoWidth - 1,
+			Math.max(0, Math.floor((e.clientX - rect.left) * (video.videoWidth / rect.width))),
+		);
+		const y = Math.min(
+			video.videoHeight - 1,
+			Math.max(0, Math.floor((e.clientY - rect.top) * (video.videoHeight / rect.height))),
+		);
+		return { x, y };
+	}
+
+	function cropOverlayStyle(rect, wrapper) {
+		const video = videoRef.current;
+		if (!rect || !wrapper || !video || video.videoWidth === 0) return null;
+		const bounds = wrapper.getBoundingClientRect();
+		const scaleX = bounds.width / video.videoWidth;
+		const scaleY = bounds.height / video.videoHeight;
+		return {
+			left: rect.x * scaleX,
+			top: rect.y * scaleY,
+			width: Math.max(1, rect.width * scaleX),
+			height: Math.max(1, rect.height * scaleY),
+		};
+	}
+
 	function handleCanvasMove(e) {
+		if (cropMode || selection) return;
 		setHover(colorAt(e));
 	}
+
+	function beginCropSelection(e) {
+		e.preventDefault();
+		const pos = getVideoCoordinates(e);
+		if (!pos) return;
+		setSelection({ startX: pos.x, startY: pos.y, x: pos.x, y: pos.y, width: 1, height: 1 });
+		setCropMode(true);
+	}
+
+	useEffect(() => {
+		if (!selection) return;
+
+		function updateSelection(e) {
+			const pos = getVideoCoordinates(e);
+			if (!pos) return;
+			const x = Math.min(selection.startX, pos.x);
+			const y = Math.min(selection.startY, pos.y);
+			const width = Math.max(1, Math.abs(pos.x - selection.startX));
+			const height = Math.max(1, Math.abs(pos.y - selection.startY));
+			setSelection((prev) => ({ ...prev, x, y, width, height }));
+		}
+
+		function completeSelection(e) {
+			const pos = getVideoCoordinates(e);
+			if (pos) {
+				const x = Math.min(selection.startX, pos.x);
+				const y = Math.min(selection.startY, pos.y);
+				const width = Math.max(1, Math.abs(pos.x - selection.startX));
+				const height = Math.max(1, Math.abs(pos.y - selection.startY));
+				setCropRect({ x, y, width, height });
+				setSelection(null);
+				setCropMode(false);
+			}
+		}
+
+		window.addEventListener("mousemove", updateSelection);
+		window.addEventListener("mouseup", completeSelection);
+		return () => {
+			window.removeEventListener("mousemove", updateSelection);
+			window.removeEventListener("mouseup", completeSelection);
+		};
+	}, [selection]);
 
 	function handleCanvasClick(e) {
 		const picked = colorAt(e);
@@ -190,6 +333,7 @@ export default function Preview() {
 							Original
 						</p>
 						<div
+							ref={origWrapperRef}
 							className="relative flex justify-center overflow-hidden rounded-md border border-stone-200 bg-stone-900 shadow-inner"
 							onMouseMove={handleCanvasMove}
 							onMouseLeave={() => setHover(null)}
@@ -202,7 +346,26 @@ export default function Preview() {
 								onLoadedData={() => setVideoReady(true)}
 								className="block max-h-[60vh] w-auto max-w-full cursor-crosshair"
 							/>
-							{hover && (
+							<div
+								className={
+									"absolute inset-0 z-10 " +
+									(cropMode || selection ? "pointer-events-auto cursor-crosshair" : "pointer-events-none")
+								}
+								onMouseDown={beginCropSelection}
+							/>
+							{cropRect && (
+								<div
+									className="pointer-events-none absolute border border-green-500/80 bg-green-500/10"
+									style={cropOverlayStyle(cropRect, origWrapperRef.current)}
+								/>
+							)}
+							{selection && (
+								<div
+									className="pointer-events-none absolute border border-amber-300/90 bg-amber-300/15"
+									style={cropOverlayStyle(selection, origWrapperRef.current)}
+								/>
+							)}
+							{hover && !cropMode && !selection && (
 								<div
 									className="pointer-events-none absolute z-10 flex items-center gap-2 rounded bg-stone-900/90 px-2 py-1 text-xs text-white"
 									style={{ left: hover.x + 14, top: hover.y + 14 }}
@@ -226,7 +389,7 @@ export default function Preview() {
 								live
 							</span>
 						</p>
-						<div className="relative flex justify-center overflow-hidden rounded-md border border-stone-200 bg-stone-900 shadow-inner">
+						<div ref={binarizedWrapperRef} className="relative flex justify-center overflow-hidden rounded-md border border-stone-200 bg-stone-900 shadow-inner">
 							<canvas
 								ref={canvasRef}
 								onMouseMove={handleCanvasMove}
@@ -237,7 +400,7 @@ export default function Preview() {
 							{/* hidden canvas that always holds the raw frame for the eyedropper */}
 							<canvas ref={pickRef} className="hidden" />
 
-							{hover && (
+							{hover && !cropMode && !selection && (
 								<div
 									className="pointer-events-none absolute z-10 flex items-center gap-2 rounded bg-stone-900/90 px-2 py-1 text-xs text-white"
 									style={{ left: hover.x + 14, top: hover.y + 14 }}
@@ -259,6 +422,41 @@ export default function Preview() {
 				</p>
 
 				<div className="mb-8 space-y-5">
+					<div className="flex flex-wrap items-center gap-4">
+						<button
+							type="button"
+							onClick={() => setCropMode((v) => !v)}
+							className={`rounded-sm border px-4 py-2 text-sm font-medium transition ${
+								cropMode
+									? "border-amber-500 bg-amber-50 text-amber-700"
+									: "border-stone-300 bg-white text-stone-700 hover:border-green-400 hover:bg-stone-50"
+							}`}
+						>
+							{cropMode ? "Selecting crop" : cropRect ? "Change crop" : "Select crop"}
+						</button>
+						<button
+							type="button"
+							onClick={() => {
+								setCropRect(null);
+								setSelection(null);
+								setCropMode(false);
+							}}
+							disabled={!cropRect}
+							className="rounded-sm border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-red-400 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+						>
+							Clear crop
+						</button>
+					</div>
+					{cropRect && (
+						<p className="text-sm text-stone-500">
+							Crop active: {cropRect.x},{cropRect.y} — {cropRect.width}×{cropRect.height}
+						</p>
+					)}
+					{cropMode && (
+						<p className="text-sm text-amber-700">
+							Drag on the original video to set the crop area. Release to confirm.
+						</p>
+					)}
 					<div className="flex flex-wrap items-center gap-6">
 						<label className="flex items-center gap-3 text-sm font-medium text-stone-600">
 							Target color
@@ -321,6 +519,11 @@ export default function Preview() {
 										title={run.color}
 									/>
 									<span className="text-stone-600">Threshold {run.threshold}</span>
+									{run.cropRect && (
+										<span className="text-stone-500">
+											Crop {run.cropRect.x},{run.cropRect.y} {run.cropRect.width}×{run.cropRect.height}
+										</span>
+									)}
 									<span className="text-xs text-stone-400">
 										{run.time ? new Date(run.time).toLocaleString() : ""}
 									</span>
@@ -337,13 +540,13 @@ export default function Preview() {
 											Use settings
 										</button>
 										{run.status === "done" && run.result ? (
-											<a
-												href={run.result}
-												download
+											<button
+												type="button"
+												onClick={() => downloadResult(run.result)}
 												className="font-medium text-green-700 underline underline-offset-2 hover:text-green-900"
 											>
-												Download CSV
-											</a>
+												{getResultLabel(run.result)}
+											</button>
 										) : (
 											<span
 												className={
