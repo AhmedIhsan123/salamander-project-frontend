@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useCallback } from "react";
 
 // Simple toast notifications. Wrap the app in <ToastProvider> and call
-// useToast() anywhere to show a quick message.
+// we can useToast() anywhere to show a quick message
 const ToastContext = createContext(() => {});
 
 export function useToast() {
@@ -14,7 +14,6 @@ export function ToastProvider({ children }) {
 	const showToast = useCallback((message, type = "info") => {
 		const id = Date.now() + Math.random();
 		setToasts((list) => [...list, { id, message, type }]);
-		// auto-remove after 3.5s
 		setTimeout(() => {
 			setToasts((list) => list.filter((t) => t.id !== id));
 		}, 3500);

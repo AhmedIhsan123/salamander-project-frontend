@@ -11,9 +11,9 @@ export default function Preview() {
 	const [color, setColor] = useState("#ffa200");
 	const [tolerance, setTolerance] = useState(100);
 	const [videoReady, setVideoReady] = useState(false);
-	const [job, setJob] = useState(null); // { jobId, status, result?, error? }
+	const [job, setJob] = useState(null); 
 	const [submitting, setSubmitting] = useState(false);
-	const [hover, setHover] = useState(null); // color under the mouse
+	const [hover, setHover] = useState(null); 
 	const [history, setHistory] = useState([]);
 	const [cropRect, setCropRect] = useState(null);
 	const [cropMode, setCropMode] = useState(false);
@@ -21,7 +21,7 @@ export default function Preview() {
 
 	const videoRef = useRef(null);
 	const canvasRef = useRef(null);
-	const pickRef = useRef(null); // hidden canvas used to read pixel colors
+	const pickRef = useRef(null); 
 	const origWrapperRef = useRef(null);
 	const binarizedWrapperRef = useRef(null);
 	// keep latest color/threshold/crop in refs so the animation loop sees fresh values
@@ -88,7 +88,7 @@ export default function Preview() {
 		}
 	}
 
-	// Draws the current video frame to the canvas, binarizing it if needed.
+	// Draws the current video frame to the canvas, binarizing it if needed
 	function drawFrame() {
 		const video = videoRef.current;
 		const canvas = canvasRef.current;
@@ -499,7 +499,15 @@ export default function Preview() {
 								: "Start Processing"}
 					</button>
 
-					<ResultsPanel job={job} />
+					<ResultsPanel
+						job={job}
+						onSeek={(t) => {
+							const v = videoRef.current;
+							if (v && Number.isFinite(t)) {
+								v.currentTime = t;
+							}
+						}}
+					/>
 				</div>
 
 				{history.length > 0 && (
