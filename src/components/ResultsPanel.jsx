@@ -1,16 +1,17 @@
 import { useEffect, useState } from "react";
+import RunAnalytics from "./RunAnalytics.jsx";
 
-// Shows the state of the current job: processing, error, or done
-// When done: summary line, download button, and an optional data table.
-export default function ResultsPanel({ job }) {
+// Shows the state of the current job: processing, error, or done.
+// When done: summary line, download button, and an Analytics panel
+export default function ResultsPanel({ job, onSeek }) {
 	const [rows, setRows] = useState(null);
-	const [showTable, setShowTable] = useState(false);
+	const [showAnalytics, setShowAnalytics] = useState(false);
 
 	// Load the result CSV once the job finishes
 	useEffect(() => {
 		if (job?.status !== "done" || !job.result) {
 			setRows(null);
-			setShowTable(false);
+			setShowAnalytics(false);
 			return;
 		}
 		fetch(job.result)
@@ -25,6 +26,7 @@ export default function ResultsPanel({ job }) {
 					.filter((line) => line.length > 0)
 					.map((line) => line.split(","));
 				setRows(parsed);
+				setShowAnalytics(true);
 			})
 			.catch(() => setRows([]));
 	}, [job?.status, job?.result]);
@@ -70,11 +72,15 @@ export default function ResultsPanel({ job }) {
 					{rows !== null && rows.length > 0 && (
 						<button
 							type="button"
-							onClick={() => setShowTable((s) => !s)}
-							className="rounded-sm border border-green-300 px-4 py-2 text-sm
-							           font-medium text-green-800 transition-colors hover:bg-green-100"
+							onClick={() => setShowAnalytics((s) => !s)}
+							className={
+								"rounded-sm border px-4 py-2 text-sm font-medium transition-colors " +
+								(showAnalytics
+									? "border-green-500 bg-green-100 text-green-900"
+									: "border-green-300 text-green-800 hover:bg-green-100")
+							}
 						>
-							{showTable ? "Hide data" : "View data"}
+							{showAnalytics ? "Hide analytics" : "View analytics"}
 						</button>
 					)}
 					<a
@@ -88,47 +94,11 @@ export default function ResultsPanel({ job }) {
 				</div>
 			</div>
 
-			{showTable && rows !== null && rows.length > 0 && (
-				<div className="mt-4 max-h-72 overflow-auto rounded-sm border border-green-200 bg-white">
-					<table className="w-full text-left text-xs">
-						<thead className="sticky top-0 bg-stone-50 text-stone-500">
-							<tr>
-								<th className="px-3 py-2 font-medium">#</th>
-								{/* CSV format from the JAR is: seconds, x, y */}
-								{rows[0].map((_, i) => (
-									<th key={i} className="px-3 py-2 font-medium">
-										{rows[0].length === 3
-											? ["Time (s)", "X", "Y"][i]
-											: `Col ${i + 1}`}
-									</th>
-								))}
-							</tr>
-						</thead>
-						<tbody className="text-stone-700">
-							{/* show at most 200 rows so the page stays fast */}
-							{rows.slice(0, 200).map((row, ri) => (
-								<tr key={ri} className="border-t border-stone-100">
-									<td className="px-3 py-1.5 text-stone-400">{ri + 1}</td>
-									{row.map((cell, ci) => (
-										<td key={ci} className="px-3 py-1.5 tabular-nums">
-											{cell}
-										</td>
-									))}
-								</tr>
-							))}
-						</tbody>
-					</table>
-					{rows.length > 200 && (
-						<p className="border-t border-stone-100 px-3 py-2 text-xs text-stone-400">
-							Showing first 200 of {rows.length.toLocaleString()} rows — download
-							the CSV for everything.
-						</p>
-					)}
+			{showAnalytics && rows !== null && rows.length > 0 && (
+				<div className="mt-4">
+					<RunAnalytics rows={rows} onSeek={onSeek} />
 				</div>
 			)}
-
-			{/* Charts/heatmap section will go here later (Ahmed's feature) —
-			    it can reuse the rows data already that i used above. it should be parsed above. */}
 		</div>
 	);
 }

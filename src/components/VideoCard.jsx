@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { renameVideo, deleteVideo } from "../api.js";
 import { useToast } from "./Toast.jsx";
 
-// A single video tile with a "manage" menu for rename and delete.
+// A single video tile with a manage menu for rename and delete
 // onChanged() tells the parent to refresh the list after a change.
 export default function VideoCard({ filename, thumbnail, onChanged }) {
 	const [menuOpen, setMenuOpen] = useState(false);
