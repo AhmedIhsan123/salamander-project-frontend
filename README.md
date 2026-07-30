@@ -2,7 +2,7 @@
 
 A tool for analysing videos of lizards moving on a flat surface. It binarizes each frame based on a target color and threshold, then finds the centroid of the largest contiguous mass (the lizard).
 
-![Demo](assets/demo.gif)
+![Demo](src/assets/demo.gif)
 
 ---
 
