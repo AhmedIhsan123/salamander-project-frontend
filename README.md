@@ -4,6 +4,8 @@ A tool for analysing videos of lizards moving on a flat surface. It binarizes ea
 
 ![Demo](src/assets/demo.gif)
 
+> **Backend repo:** [centroid-finder](https://github.com/Elvin-code-dev/centroid-finder)
+
 ---
 
 ## Team Members
